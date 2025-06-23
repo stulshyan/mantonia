@@ -1,1 +1,47 @@
-mmm
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome to Maintonia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* quick, lightweight styling so it looks nice out-of-the-box */
+    :root {
+      font-family: system-ui, sans-serif;
+      color-scheme: light dark;
+    }
+    body {
+      display: grid;
+      min-height: 100vh;
+      place-content: center;
+      gap: 2rem;
+      margin: 0;
+      padding: 2rem;
+      text-align: center;
+    }
+    h1 { font-size: 2rem; margin: 0; }
+    a.button {
+      display: inline-block;
+      padding: 1rem 2.5rem;
+      margin: .5rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 0.75rem;
+      border: 2px solid currentColor;
+      transition: transform .15s ease;
+    }
+    a.button:hover { transform: scale(1.05); }
+  </style>
+</head>
+
+<body>
+  <h1>Select where you’d like to go</h1>
+
+  <p>
+    <a class="button" href="webportal.html">Admin Web Portal</a>
+    <a class="button" href="app.html">Technician App</a>
+  </p>
+</body>
+</html>
+
