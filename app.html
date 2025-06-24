@@ -1,1 +1,2211 @@
+    <script>
+        // Global variables
+        let currentScreen = 'dashboard';
+        let completedTasks = 3;
+        let totalTasks = 5;
+        let currentStatus = 'in-progress';
+        let isTimerRunning = true;
+        let startTime = Date.now() - (1 * 3600 + 23 * 60 + 45) * 1000; // Started 1:23:45 ago
+        let callActive = false;
 
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Maintonia FSM App initialized');
+            showNotification('Welcome back, John!', 'success');
+            
+            // Add event listeners
+            setupEventListeners();
+            updateProgress();
+            startTimer();
+        });
+
+        function setupEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const screen = this.getAttribute('data-screen');
+                    if (screen) {
+                        showScreen(screen);
+                    }
+                });
+            });
+
+            // Back buttons
+            document.querySelectorAll('.back-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (this.textContent.includes('📞')) {
+                        return; // This is a call button, not back button
+                    }
+                    showScreen('dashboard');
+                });
+            });
+
+            // Work order cards
+            document.querySelectorAll('.work-order-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    showScreen('taskDetail');
+                });
+            });
+
+            // Buttons
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    handleButtonClick(this);
+                });
+            });
+
+            // Checkboxes
+            document.querySelectorAll('.checkbox').forEach(checkbox => {
+                checkbox.addEventListener('click', function() {
+                    toggleCheckbox(this);
+                });
+            });
+
+            // FAB button
+            document.querySelector('.fab').addEventListener('click', function() {
+                showEmergencyAlert();
+            });
+
+            // Menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    handleMenuClick(this);
+                });
+            });
+        }
+
+        // Timer functionality
+        function startTimer() {
+            setInterval(() => {
+                if (isTimerRunning) {
+                    updateTimerDisplay();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            const timerDisplay = document.getElementById('timerDisplay');
+            if (timerDisplay) {
+                timerDisplay.textContent = timeString;
+            }
+        }
+
+        function toggleTimer() {
+            isTimerRunning = !isTimerRunning;
+            const timerBtn = document.getElementById('timerBtn');
+            
+            if (isTimerRunning) {
+                timerBtn.innerHTML = '⏸ Pause';
+                timerBtn.classList.remove('active');
+                showNotification('Timer resumed', 'info');
+            } else {
+                timerBtn.innerHTML = '▶ Resume';
+                timerBtn.classList.add('active');
+                showNotification('Timer paused', 'info');
+            }
+            
+            vibrate(100);
+        }
+
+        function addTimeNote() {
+            const note = prompt('Add a time note:');
+            if (note && note.trim()) {
+                showNotification('Time note added', 'success');
+                vibrate(50);
+            }
+        }
+
+        // Status management
+        function updateStatus(newStatus) {
+            if (currentStatus === newStatus) return;
+            
+            const statusMessages = {
+                'assigned': 'Task marked as assigned',
+                'in-progress': 'Task in progress',
+                'paused': 'Task paused',
+                'completed': 'Task completed'
+            };
+            
+            // Update UI
+            document.querySelectorAll('.status-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.status === newStatus) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Update global status
+            currentStatus = newStatus;
+            
+            // Show notification
+            showNotification(statusMessages[newStatus], 'success');
+            
+            // Update task cards in dashboard
+            updateTaskCardStatus(newStatus);
+            
+            // Handle specific status changes
+            if (newStatus === 'paused') {
+                isTimerRunning = false;
+                toggleTimer();
+            } else if (newStatus === 'in-progress' && !isTimerRunning) {
+                isTimerRunning = true;
+                toggleTimer();
+            }
+            
+            vibrate(100);
+        }
+
+        function updateTaskCardStatus(status) {
+            const statusBadges = document.querySelectorAll('.status-badge');
+            statusBadges.forEach(badge => {
+                if (badge.closest('.work-order-card').querySelector('.card-title').textContent.includes('HVAC')) {
+                    badge.className = `status-badge status-${status}`;
+                    badge.textContent = status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+                }
+            });
+        }
+
+        // Calling functionality
+        function makeCall(type) {
+            if (callActive) {
+                showNotification('Call already in progress', 'info');
+                return;
+            }
+            
+            const contacts = {
+                'supervisor': { name: 'Mike Johnson', avatar: '👨‍💼', number: '+91-98765-43210' },
+                'client': { name: 'Plant Manager', avatar: '🏭', number: '+91-98765-43211' },
+                'support': { name: 'Tech Support', avatar: '🛠️', number: '+91-98765-43212' }
+            };
+            
+            const contact = contacts[type];
+            if (!contact) return;
+            
+            // Update call interface
+            document.getElementById('callAvatar').textContent = contact.avatar;
+            document.getElementById('callName').textContent = contact.name;
+            document.getElementById('callStatus').textContent = 'Calling...';
+            
+            // Show call interface
+            document.getElementById('callOverlay').classList.add('active');
+            callActive = true;
+            
+            // Simulate ring
+            vibrate([300, 200, 300, 200, 300]);
+            showNotification(`Calling ${contact.name}...`, 'info');
+            
+            // Simulate call connection after 3 seconds
+            setTimeout(() => {
+                if (callActive) {
+                    document.getElementById('callStatus').textContent = 'Connected';
+                    showNotification('Call connected', 'success');
+                }
+            }, 3000);
+            
+            // Auto-end call after 15 seconds (demo)
+            setTimeout(() => {
+                if (callActive) {
+                    endCall();
+                }
+            }, 15000);
+        }
+
+        function answerCall() {
+            document.getElementById('callStatus').textContent = 'Call Active';
+            showNotification('Call answered', 'success');
+            vibrate(100);
+        }
+
+        function endCall() {
+            document.getElementById('callOverlay').classList.remove('active');
+            callActive = false;
+            showNotification('Call ended', 'info');
+            vibrate(100);
+        }
+
+        // Action functions
+        function pauseTask() {
+            updateStatus('paused');
+        }
+
+        function openNavigation() {
+            showNotification('Opening GPS navigation...', 'info');
+            // In real app: window.open('https://maps.google.com/?q=Manufacturing+Plant+A');
+        }
+
+        function requestSupport() {
+            showNotification('Support request sent to supervisor', 'success');
+            vibrate(100);
+            
+            // Simulate supervisor calling back
+            setTimeout(() => {
+                showNotification('Supervisor is calling you back...', 'info');
+                setTimeout(() => makeCall('supervisor'), 2000);
+            }, 3000);
+        }
+
+        function reportIssue() {
+            const issue = prompt('Describe the issue:');
+            if (issue && issue.trim()) {
+                showNotification('Issue reported successfully', 'success');
+                vibrate(100);
+            }
+        }
+
+        function captureMedia() {
+            const options = ['📷 Take Photo', '🎤 Record Audio', '📹 Record Video'];
+            const choice = prompt('Choose option:\n1. Take Photo\n2. Record Audio\n3. Record Video\n\nEnter 1, 2, or 3:');
+            
+            switch(choice) {
+                case '1':
+                    showNotification('Photo captured!', 'success');
+                    break;
+                case '2':
+                    showNotification('Audio recording started...', 'info');
+                    setTimeout(() => showNotification('Audio recorded!', 'success'), 3000);
+                    break;
+                case '3':
+                    showNotification('Video recording started...', 'info');
+                    setTimeout(() => showNotification('Video recorded!', 'success'), 5000);
+                    break;
+                default:
+                    if (choice) showNotification('Invalid option', 'error');
+            }
+            
+            if (choice >= '1' && choice <= '3') {
+                vibrate([100, 50, 100]);
+            }
+        }
+
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen-content').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // Show selected screen
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+                currentScreen = screenId;
+            }
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const activeNavItem = document.querySelector(`[data-screen="${screenId}"]`);
+            if (activeNavItem) {
+                activeNavItem.classList.add('active');
+            }
+
+            // Haptic feedback
+            vibrate(30);
+            
+            console.log('Switched to screen:', screenId);
+        }
+
+        function handleButtonClick(button) {
+            const buttonText = button.textContent.trim();
+            
+            switch(buttonText) {
+                case 'View':
+                    showScreen('taskDetail');
+                    break;
+                case 'Continue':
+                    showNotification('Continuing task...', 'info');
+                    updateStatus('in-progress');
+                    break;
+                case 'Start':
+                    showNotification('Starting task...', 'success');
+                    updateStatus('in-progress');
+                    break;
+                case 'Navigate':
+                    openNavigation();
+                    break;
+                case 'Complete Task':
+                    attemptCompleteTask();
+                    break;
+                case 'Pause Task':
+                    pauseTask();
+                    break;
+                case '🗺 Navigate to Location':
+                    openNavigation();
+                    break;
+                default:
+                    showNotification(`${buttonText} clicked`, 'info');
+            }
+            
+            vibrate(50);
+        }
+
+        function toggleCheckbox(checkbox) {
+            checkbox.classList.toggle('checked');
+            
+            // Update progress
+            const checkedCount = document.querySelectorAll('.checkbox.checked').length;
+            const totalCount = document.querySelectorAll('.checkbox').length;
+            
+            updateProgress(checkedCount, totalCount);
+            
+            vibrate(50);
+            
+            if (checkedCount === totalCount) {
+                setTimeout(() => {
+                    showNotification('All checklist items completed!', 'success');
+                    vibrate([100, 50, 100]);
+                    
+                    // Auto-enable complete button
+                    const completeBtn = document.querySelector('.action-bar .btn-primary');
+                    if (completeBtn) {
+                        completeBtn.style.background = '#10b981';
+                        completeBtn.textContent = '✅ Ready to Complete';
+                    }
+                }, 500);
+            }
+        }
+
+        function updateProgress(completed = null, total = null) {
+            if (completed !== null && total !== null) {
+                completedTasks = completed;
+                totalTasks = total;
+            }
+            
+            const progressElement = document.getElementById('progress');
+            if (progressElement) {
+                progressElement.textContent = `${completedTasks}/${totalTasks} Complete`;
+            }
+        }
+
+        function attemptCompleteTask() {
+            const checkedCount = document.querySelectorAll('.checkbox.checked').length;
+            const totalCount = document.querySelectorAll('.checkbox').length;
+            
+            if (checkedCount < totalCount) {
+                const remaining = totalCount - checkedCount;
+                showNotification(`Please complete ${remaining} more checklist items`, 'error');
+                vibrate([200, 100, 200]);
+                return;
+            }
+            
+            // Show completion confirmation
+            const confirmed = confirm('Mark this task as completed?\n\nThis will:\n- Stop the timer\n- Submit your report\n- Notify the supervisor');
+            
+            if (confirmed) {
+                completeTask();
+            }
+        }
+
+        function completeTask() {
+            updateStatus('completed');
+            isTimerRunning = false;
+            
+            showNotification('Task completed successfully!', 'success');
+            vibrate([100, 50, 100, 50, 100]);
+            
+            // Update timer button
+            const timerBtn = document.getElementById('timerBtn');
+            if (timerBtn) {
+                timerBtn.innerHTML = '✅ Completed';
+                timerBtn.classList.add('active');
+                timerBtn.disabled = true;
+            }
+            
+            setTimeout(() => {
+                showScreen('dashboard');
+                showNotification('Great job! Ready for next task', 'success');
+                
+                // Update badge count
+                const badge = document.querySelector('.badge');
+                if (badge) {
+                    const currentCount = parseInt(badge.textContent);
+                    badge.textContent = Math.max(0, currentCount - 1);
+                }
+            }, 3000);
+        }
+
+        function handleMenuClick(menuItem) {
+            const menuText = menuItem.querySelector('.menu-text').textContent;
+            
+            switch(menuText) {
+                case 'Settings':
+                    showNotification('Opening settings...', 'info');
+                    break;
+                case 'Notifications':
+                    showNotification('Opening notifications...', 'info');
+                    break;
+                case 'Support':
+                    makeCall('support');
+                    break;
+                case 'Performance':
+                    showNotification('Loading performance data...', 'info');
+                    break;
+                case 'Sign Out':
+                    if (confirm('Are you sure you want to sign out?\n\nAny unsaved progress will be lost.')) {
+                        showNotification('Signing out...', 'info');
+                        setTimeout(() => {
+                            showNotification('Signed out successfully', 'success');
+                        }, 2000);
+                    }
+                    break;
+            }
+            
+            vibrate(50);
+        }
+
+        function showEmergencyAlert() {
+            const confirmed = confirm('🚨 EMERGENCY ALERT 🚨\n\nThis will immediately:\n- Notify your supervisor\n- Alert the safety team\n- Send your location\n- Stop current task\n\nContinue?');
+            
+            if (confirmed) {
+                showNotification('Emergency alert sent!', 'error');
+                vibrate([200, 100, 200, 100, 200]);
+                
+                // Auto-call supervisor
+                setTimeout(() => {
+                    showNotification('Calling supervisor for emergency...', 'error');
+                    makeCall('supervisor');
+                }, 2000);
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            document.querySelectorAll('.notification').forEach(notif => {
+                notif.remove();
+            });
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Show notification
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            // Hide notification
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function vibrate(duration = 100) {
+            if (navigator.vibrate) {
+                if (Array.isArray(duration)) {
+                    navigator.vibrate(duration);
+                } else {
+                    navigator.vibrate(duration);
+                }
+            }
+        }
+
+        // Simulate real-time updates
+        function simulateUpdates() {
+            setInterval(() => {
+                // Random notification simulation
+                if (Math.random() > 0.9995) {
+                    const messages = [
+                        'New task assigned',
+                        'Update from supervisor',
+                        'Weather alert for your area',
+                        'Task reminder: Break time in 30 minutes'
+                    ];
+                    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                    showNotification(randomMessage, 'info');
+                }
+                
+                // Simulate incoming call occasionally
+                if (Math.random() > 0.9998 && !callActive) {
+                    showNotification('Incoming call from supervisor...', 'info');
+                    setTimeout(() => makeCall('supervisor'), 1000);
+                }
+            }, 1000);
+        }
+
+        // SLA countdown simulation
+        function updateSLA() {
+            setInterval(() => {
+                const slaElement = document.getElementById('slaTime');
+                if (slaElement && currentStatus === 'in-progress') {
+                    const currentText = slaElement.textContent;
+                    const match = currentText.match(/(\d+)h\s+(\d+)m/);
+                    
+                    if (match) {
+                        let hours = parseInt(match[1]);
+                        let minutes = parseInt(match[2]);
+                        
+                        minutes--;
+                        if (minutes < 0) {
+                            minutes = 59;
+                            hours--;
+                        }
+                        
+                        if (hours < 0) {
+                            slaElement.textContent = 'SLA EXCEEDED';
+                            slaElement.style.color = '#ef4444';
+                            showNotification('SLA time exceeded!', 'error');
+                        } else {
+                            slaElement.textContent = `${hours}h ${minutes}m remaining`;
+                            
+                            // Warning when 30 minutes left
+                            if (hours === 0 && minutes === 30) {
+                                showNotification('SLA warning: 30 minutes remaining', 'error');
+                            }
+                        }
+                    }
+                }
+            }, 60000); // Update every minute
+        }
+
+        // Touch event handling for better mobile experience
+        document.addEventListener('touchstart', function() {
+            // Add touch class for styling
+        });
+
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Handle browser back button
+        window.addEventListener('popstate', function(e) {
+            if (callActive) {
+                endCall();
+            } else if (currentScreen !== 'dashboard') {
+                showScreen('dashboard');
+            }
+        });
+
+        // Start simulations and timers
+        simulateUpdates();
+        updateSLA();
+
+        // Keyboard shortcuts for testing
+        document.addEventListener('keydown', function(e) {
+            if (e.key === '1') showScreen('dashboard');
+            if (e.key === '2') showScreen('tasks');
+            if (e.key === '3') showScreen('map');
+            if (e.key === '4') showScreen('profile');
+            if (e.key === 't') showScreen('taskDetail');
+            if (e.key === 'c') makeCall('supervisor');
+            if (e.key === 'e') showEmergencyAlert();
+            if (e.key === ' ') toggleTimer();
+        });
+
+        // Console log for debugging
+        console.log('FSM Technician App - All systems ready!');
+        console.log('Available keyboard shortcuts:');
+        console.log('1-4: Navigate screens, T: Task detail, C: Call, E: Emergency, Space: Timer');
+        console.log('Current screen:', currentScreen);
+        console.log('Current status:', currentStatus);
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintonia FSM - Technician App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .phone-container {
+            width: 375px;
+            height: 812px;
+            background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%);
+            border-radius: 40px;
+            padding: 4px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border-radius: 36px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .app-header {
+            background: #ffffff;
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .date-info {
+            font-size: 15px;
+            color: #64748b;
+            font-weight: 400;
+        }
+
+        .screen-content {
+            flex: 1;
+            overflow-y: auto;
+            display: none;
+            background: #fafbfc;
+        }
+
+        .screen-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stats-container {
+            padding: 20px;
+            background: #ffffff;
+            margin: 0 0 8px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px 12px;
+            background: #fafbfc;
+            border-radius: 16px;
+            border: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .stat-item:active {
+            transform: scale(0.98);
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .section-header {
+            padding: 20px 20px 12px;
+            background: #fafbfc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .filter-btn {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:active {
+            background: #f8fafc;
+        }
+
+        .work-order-card {
+            background: #ffffff;
+            margin: 0 20px 12px;
+            border-radius: 20px;
+            border: 1px solid #f1f5f9;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .work-order-card:active {
+            transform: scale(0.98);
+        }
+
+        .priority-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .priority-high .priority-indicator { background: #ef4444; }
+        .priority-medium .priority-indicator { background: #f59e0b; }
+        .priority-low .priority-indicator { background: #10b981; }
+
+        .card-content {
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+
+        .card-meta {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-assigned { background: #dbeafe; color: #1e40af; }
+        .status-in-progress { background: #fef3c7; color: #d97706; }
+        .status-completed { background: #d1fae5; color: #059669; }
+
+        .card-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 16px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:active {
+            background: #2563eb;
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:active {
+            background: #f1f5f9;
+            transform: scale(0.98);
+        }
+
+        .bottom-nav {
+            background: #ffffff;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            height: 88px;
+            padding-bottom: 8px;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-item.active {
+            color: #3b82f6;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            margin-bottom: 2px;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge {
+            position: absolute;
+            top: 8px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .detail-header {
+            background: #ffffff;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            color: #475569;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:active {
+            background: #f8fafc;
+        }
+
+        .detail-title {
+            flex: 1;
+        }
+
+        .detail-title h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+
+        .detail-title p {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .detail-content {
+            flex: 1;
+            padding: 20px;
+            background: #fafbfc;
+        }
+
+        .info-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .info-item h4 {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .info-item p {
+            font-size: 15px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .checklist-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .checklist-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checklist-title h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .progress-indicator {
+            font-size: 12px;
+            color: #64748b;
+            background: #f8fafc;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 0;
+            border-bottom: 1px solid #f8fafc;
+        }
+
+        .checklist-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox.checked {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        .checkbox.checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .checklist-text {
+            font-size: 15px;
+            color: #374151;
+        }
+
+        .action-bar {
+            background: #ffffff;
+            padding: 20px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            gap: 12px;
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 108px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #ef4444;
+            border-radius: 28px;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.2s ease;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .profile-screen {
+            padding: 20px;
+            background: #fafbfc;
+            flex: 1;
+        }
+
+        .profile-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 16px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: #3b82f6;
+            border-radius: 40px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+        }
+
+        .profile-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .profile-role {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+
+        .menu-card {
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
+        }
+
+        .menu-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-item:active {
+            background: #f8fafc;
+        }
+
+        .menu-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .menu-text {
+            font-size: 15px;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .logout {
+            color: #ef4444;
+        }
+
+        /* Call Interface */
+        .call-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+
+        .call-overlay.active {
+            display: flex;
+        }
+
+        .call-avatar {
+            width: 120px;
+            height: 120px;
+            background: #10b981;
+            border-radius: 60px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .call-info {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .call-name {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .call-status {
+            font-size: 16px;
+            color: #94a3b8;
+        }
+
+        .call-actions {
+            display: flex;
+            gap: 60px;
+        }
+
+        .call-btn {
+            width: 64px;
+            height: 64px;
+            border: none;
+            border-radius: 32px;
+            cursor: pointer;
+            font-size: 28px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .call-btn.answer {
+            background: #10b981;
+            color: white;
+        }
+
+        .call-btn.decline {
+            background: #ef4444;
+            color: white;
+        }
+
+        .call-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Status Transition Panel */
+        .status-panel {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .status-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .status-btn {
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .status-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Quick Action Buttons */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .quick-action-btn {
+            padding: 16px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .quick-action-btn:active {
+            background: #f8fafc;
+            transform: scale(0.98);
+        }
+
+        .quick-action-icon {
+            font-size: 20px;
+        }
+
+        /* Timer Display */
+        .timer-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e293b;
+            font-family: 'SF Mono', monospace;
+            margin-bottom: 8px;
+        }
+
+        .timer-label {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        .timer-btn {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .timer-btn.active {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+        }
+
+        .timer-btn:active {
+            transform: scale(0.98);
+        }
+
+        .notification {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            max-width: 300px;
+            text-align: center;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .notification.success {
+            background: #10b981;
+        }
+
+        .notification.error {
+            background: #ef4444;
+        }
+
+        .notification.info {
+            background: #3b82f6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        @media (max-width: 400px) {
+            .phone-container {
+                width: 100%;
+                max-width: 375px;
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .phone-screen {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-container">
+        <div class="phone-screen">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>●●●●● Maintonia</span>
+                <span>🔋 87%</span>
+            </div>
+
+            <!-- Dashboard Screen -->
+            <div id="dashboard" class="screen-content active">
+                <div class="app-header">
+                    <div class="greeting">Good morning, John</div>
+                    <div class="date-info">Monday, June 23 • 5 pending tasks</div>
+                </div>
+
+                <div class="stats-container">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">5</div>
+                            <div class="stat-label">Today</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">2</div>
+                            <div class="stat-label">Active</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">8</div>
+                            <div class="stat-label">This Week</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <div class="section-title">Active Tasks</div>
+                    <button class="filter-btn">🔍 Filter</button>
+                </div>
+
+                <div class="work-order-card priority-high">
+                    <div class="priority-indicator"></div>
+                    <div class="card-content">
+                        <div class="card-title">HVAC Unit Maintenance</div>
+                        <div class="card-subtitle">Manufacturing Plant A • Unit A-101</div>
+                        <div class="card-meta">
+                            <div class="meta-item">
+                                <span>🔴</span>
+                                <span>High Priority</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>⏱</span>
+                                <span>2h left</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="status-badge status-in-progress">In Progress</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary">View</button>
+                            <button class="btn btn-primary">Continue</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="work-order-card priority-medium">
+                    <div class="priority-indicator"></div>
+                    <div class="card-content">
+                        <div class="card-title">Pump Station Inspection</div>
+                        <div class="card-subtitle">Facility B • Station B-205</div>
+                        <div class="card-meta">
+                            <div class="meta-item">
+                                <span>🟡</span>
+                                <span>Medium Priority</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>📍</span>
+                                <span>2.3 km away</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="status-badge status-assigned">Assigned</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary">Navigate</button>
+                            <button class="btn btn-primary">Start</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <div class="section-title">Completed Today</div>
+                </div>
+
+                <div class="work-order-card priority-low">
+                    <div class="priority-indicator"></div>
+                    <div class="card-content">
+                        <div class="card-title">Generator Check</div>
+                        <div class="card-subtitle">Data Center C • Generator G-301</div>
+                        <div class="card-meta">
+                            <div class="meta-item">
+                                <span class="status-badge status-completed">Completed</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>✓</span>
+                                <span>10:30 AM</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary">View Report</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Screen -->
+            <div id="tasks" class="screen-content">
+                <div class="app-header">
+                    <div class="greeting">All Tasks</div>
+                    <div class="date-info">Manage your work orders</div>
+                </div>
+
+                <div class="section-header">
+                    <div class="section-title">Today's Schedule</div>
+                    <button class="filter-btn">Sort ↕</button>
+                </div>
+
+                <div class="work-order-card priority-high">
+                    <div class="priority-indicator"></div>
+                    <div class="card-content">
+                        <div class="card-title">HVAC Maintenance</div>
+                        <div class="card-subtitle">Manufacturing Plant A</div>
+                        <div class="card-meta">
+                            <div class="meta-item">
+                                <span class="status-badge status-in-progress">In Progress</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>⏱</span>
+                                <span>2h left</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary">View</button>
+                            <button class="btn btn-primary">Continue</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="work-order-card priority-medium">
+                    <div class="priority-indicator"></div>
+                    <div class="card-content">
+                        <div class="card-title">Pump Inspection</div>
+                        <div class="card-subtitle">Facility B</div>
+                        <div class="card-meta">
+                            <div class="meta-item">
+                                <span class="status-badge status-assigned">Assigned</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>📍</span>
+                                <span>2.3 km</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary">Navigate</button>
+                            <button class="btn btn-primary">Start</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <div class="section-title">This Week</div>
+                </div>
+
+                <div class="empty-state">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                    <h3>All caught up!</h3>
+                    <p>No additional tasks scheduled for this week</p>
+                </div>
+            </div>
+
+            <!-- Task Detail Screen -->
+            <div id="taskDetail" class="screen-content">
+                <div class="detail-header">
+                    <button class="back-btn" onclick="showScreen('dashboard')">←</button>
+                    <div class="detail-title">
+                        <h2>HVAC Unit Maintenance</h2>
+                        <p>Work Order #WO-2025-001</p>
+                    </div>
+                    <button class="back-btn" style="color: #10b981; border-color: #10b981;" onclick="makeCall('supervisor')">📞</button>
+                </div>
+
+                <div class="detail-content">
+                    <!-- Timer Card -->
+                    <div class="timer-card">
+                        <div class="timer-display" id="timerDisplay">01:23:45</div>
+                        <div class="timer-label">Time on task</div>
+                        <div class="timer-controls">
+                            <button class="timer-btn" id="timerBtn" onclick="toggleTimer()">⏸ Pause</button>
+                            <button class="timer-btn" onclick="addTimeNote()">📝 Note</button>
+                        </div>
+                    </div>
+
+                    <!-- Status Panel -->
+                    <div class="status-panel">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span>📋</span>
+                            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b;">Task Status</h3>
+                        </div>
+                        <div class="status-buttons">
+                            <button class="status-btn" data-status="assigned" onclick="updateStatus('assigned')">
+                                📝 Assigned
+                            </button>
+                            <button class="status-btn active" data-status="in-progress" onclick="updateStatus('in-progress')">
+                                🔄 In Progress
+                            </button>
+                            <button class="status-btn" data-status="paused" onclick="updateStatus('paused')">
+                                ⏸️ Paused
+                            </button>
+                            <button class="status-btn" data-status="completed" onclick="updateStatus('completed')">
+                                ✅ Completed
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <h4>Asset</h4>
+                                <p>HVAC Unit A-101</p>
+                            </div>
+                            <div class="info-item">
+                                <h4>Priority</h4>
+                                <p>🔴 High</p>
+                            </div>
+                            <div class="info-item">
+                                <h4>SLA</h4>
+                                <p id="slaTime">2h remaining</p>
+                            </div>
+                            <div class="info-item">
+                                <h4>Type</h4>
+                                <p>Predictive</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <span>📍</span>
+                            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b;">Manufacturing Plant A</h3>
+                        </div>
+                        <div style="font-size: 14px; color: #64748b; margin-bottom: 16px;">
+                            Building 1, Floor 2, Zone A<br>
+                            123 Industrial Avenue, Bengaluru 560001
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="openNavigation()">
+                            🗺 Navigate to Location
+                        </button>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="checklist-header">
+                            <div class="checklist-title">
+                                <span>✓</span>
+                                <h3>Maintenance Checklist</h3>
+                            </div>
+                            <div class="progress-indicator" id="progress">3/5 Complete</div>
+                        </div>
+                        <div class="checklist-item">
+                            <div class="checkbox checked"></div>
+                            <div class="checklist-text">Check air filter condition</div>
+                        </div>
+                        <div class="checklist-item">
+                            <div class="checkbox checked"></div>
+                            <div class="checklist-text">Inspect cooling coils</div>
+                        </div>
+                        <div class="checklist-item">
+                            <div class="checkbox checked"></div>
+                            <div class="checklist-text">Test temperature sensors</div>
+                        </div>
+                        <div class="checklist-item">
+                            <div class="checkbox"></div>
+                            <div class="checklist-text">Check refrigerant levels</div>
+                        </div>
+                        <div class="checklist-item">
+                            <div class="checkbox"></div>
+                            <div class="checklist-text">Clean condenser unit</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions Panel -->
+                    <div class="info-card">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span>🚀</span>
+                            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b;">Quick Actions</h3>
+                        </div>
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" onclick="makeCall('supervisor')">
+                                <div class="quick-action-icon">📞</div>
+                                <div>Call Supervisor</div>
+                            </button>
+                            <button class="quick-action-btn" onclick="makeCall('client')">
+                                <div class="quick-action-icon">👤</div>
+                                <div>Call Client</div>
+                            </button>
+                            <button class="quick-action-btn" onclick="requestSupport()">
+                                <div class="quick-action-icon">🆘</div>
+                                <div>Request Help</div>
+                            </button>
+                            <button class="quick-action-btn" onclick="reportIssue()">
+                                <div class="quick-action-icon">⚠️</div>
+                                <div>Report Issue</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                            <span>📷</span>
+                            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b;">Documentation</h3>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                            <div style="aspect-ratio: 1; background: #10b981; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">📷</div>
+                            <div style="aspect-ratio: 1; background: #10b981; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">📷</div>
+                            <div style="aspect-ratio: 1; background: #10b981; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">🎤</div>
+                            <div style="aspect-ratio: 1; background: #3b82f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; font-size: 20px;" onclick="captureMedia()">+</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-secondary" onclick="pauseTask()">Pause Task</button>
+                    <button class="btn btn-primary" onclick="completeTask()">Complete Task</button>
+                </div>
+            </div>
+
+            <!-- Call Overlay -->
+            <div id="callOverlay" class="call-overlay">
+                <div class="call-avatar" id="callAvatar">👨‍💼</div>
+                <div class="call-info">
+                    <div class="call-name" id="callName">Mike Johnson</div>
+                    <div class="call-status" id="callStatus">Calling...</div>
+                </div>
+                <div class="call-actions">
+                    <button class="call-btn answer" onclick="answerCall()">📞</button>
+                    <button class="call-btn decline" onclick="endCall()">📞</button>
+                </div>
+            </div>
+
+            <!-- Map Screen -->
+            <div id="map" class="screen-content">
+                <div class="app-header">
+                    <div class="greeting">Location & Routes</div>
+                    <div class="date-info">Track your assignments</div>
+                </div>
+
+                <div style="flex: 1; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🗺️</div>
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #1e293b;">Interactive Map View</h3>
+                    <p style="font-size: 14px; text-align: center; padding: 0 40px; line-height: 1.5;">
+                        Real-time GPS tracking, route optimization, and technician location sharing
+                    </p>
+                </div>
+            </div>
+
+            <!-- Profile Screen -->
+            <div id="profile" class="screen-content">
+                <div class="app-header">
+                    <div class="greeting">Profile</div>
+                    <div class="date-info">Manage your account</div>
+                </div>
+
+                <div class="profile-screen">
+                    <div class="profile-card">
+                        <div class="profile-avatar">👨‍🔧</div>
+                        <div class="profile-name">John Smith</div>
+                        <div class="profile-role">Senior Technician • Zone A</div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">124</div>
+                                <div class="stat-label">Completed</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">4.8</div>
+                                <div class="stat-label">Rating</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">98%</div>
+                                <div class="stat-label">SLA</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-card">
+                        <div class="menu-item">
+                            <div class="menu-icon">⚙️</div>
+                            <div class="menu-text">Settings</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">🔔</div>
+                            <div class="menu-text">Notifications</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">📞</div>
+                            <div class="menu-text">Support</div>
+                        </div>
+                        <div class="menu-item">
+                            <div class="menu-icon">📊</div>
+                            <div class="menu-text">Performance</div>
+                        </div>
+                        <div class="menu-item logout">
+                            <div class="menu-icon">🚪</div>
+                            <div class="menu-text">Sign Out</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Button -->
+            <button class="fab">🚨</button>
+
+            <!-- Bottom Navigation -->
+            <div class="bottom-nav">
+                <button class="nav-item active" data-screen="dashboard">
+                    <div class="nav-icon">🏠</div>
+                    <div class="nav-label">Home</div>
+                </button>
+                <button class="nav-item" data-screen="tasks" style="position: relative;">
+                    <div class="nav-icon">📋</div>
+                    <div class="nav-label">Tasks</div>
+                    <div class="badge">5</div>
+                </button>
+                <button class="nav-item" data-screen="map">
+                    <div class="nav-icon">🗺️</div>
+                    <div class="nav-label">Map</div>
+                </button>
+                <button class="nav-item" data-screen="profile">
+                    <div class="nav-icon">👤</div>
+                    <div class="nav-label">Profile</div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentScreen = 'dashboard';
+        let completedTasks = 3;
+        let totalTasks = 5;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Maintonia FSM App initialized');
+            showNotification('Welcome back, John!', 'success');
+            
+            // Add event listeners
+            setupEventListeners();
+            updateProgress();
+        });
+
+        function setupEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const screen = this.getAttribute('data-screen');
+                    if (screen) {
+                        showScreen(screen);
+                    }
+                });
+            });
+
+            // Back buttons
+            document.querySelectorAll('.back-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    showScreen('dashboard');
+                });
+            });
+
+            // Work order cards
+            document.querySelectorAll('.work-order-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    showScreen('taskDetail');
+                });
+            });
+
+            // Buttons
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    handleButtonClick(this);
+                });
+            });
+
+            // Checkboxes
+            document.querySelectorAll('.checkbox').forEach(checkbox => {
+                checkbox.addEventListener('click', function() {
+                    toggleCheckbox(this);
+                });
+            });
+
+            // FAB button
+            document.querySelector('.fab').addEventListener('click', function() {
+                showEmergencyAlert();
+            });
+
+            // Menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    handleMenuClick(this);
+                });
+            });
+        }
+
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen-content').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // Show selected screen
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+                currentScreen = screenId;
+            }
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const activeNavItem = document.querySelector(`[data-screen="${screenId}"]`);
+            if (activeNavItem) {
+                activeNavItem.classList.add('active');
+            }
+
+            // Haptic feedback
+            vibrate(30);
+            
+            console.log('Switched to screen:', screenId);
+        }
+
+        function handleButtonClick(button) {
+            const buttonText = button.textContent.trim();
+            
+            switch(buttonText) {
+                case 'View':
+                    showScreen('taskDetail');
+                    break;
+                case 'Continue':
+                    showNotification('Continuing task...', 'info');
+                    break;
+                case 'Start':
+                    showNotification('Starting task...', 'success');
+                    break;
+                case 'Navigate':
+                    showNotification('Opening navigation...', 'info');
+                    break;
+                case 'Complete Task':
+                    completeTask();
+                    break;
+                case 'Pause Task':
+                    showNotification('Task paused', 'info');
+                    break;
+                case '🗺 Navigate to Location':
+                    showNotification('Opening GPS navigation...', 'info');
+                    break;
+                default:
+                    showNotification(`${buttonText} clicked`, 'info');
+            }
+            
+            vibrate(50);
+        }
+
+        function toggleCheckbox(checkbox) {
+            checkbox.classList.toggle('checked');
+            
+            // Update progress
+            const checkedCount = document.querySelectorAll('.checkbox.checked').length;
+            const totalCount = document.querySelectorAll('.checkbox').length;
+            
+            updateProgress(checkedCount, totalCount);
+            
+            vibrate(50);
+            
+            if (checkedCount === totalCount) {
+                setTimeout(() => {
+                    showNotification('All tasks completed!', 'success');
+                }, 500);
+            }
+        }
+
+        function updateProgress(completed = null, total = null) {
+            if (completed !== null && total !== null) {
+                completedTasks = completed;
+                totalTasks = total;
+            }
+            
+            const progressElement = document.getElementById('progress');
+            if (progressElement) {
+                progressElement.textContent = `${completedTasks}/${totalTasks} Complete`;
+            }
+        }
+
+        function completeTask() {
+            const checkedCount = document.querySelectorAll('.checkbox.checked').length;
+            const totalCount = document.querySelectorAll('.checkbox').length;
+            
+            if (checkedCount < totalCount) {
+                const remaining = totalCount - checkedCount;
+                showNotification(`Please complete ${remaining} more checklist items`, 'error');
+                return;
+            }
+            
+            showNotification('Task completed successfully!', 'success');
+            vibrate([100, 50, 100]);
+            
+            setTimeout(() => {
+                showScreen('dashboard');
+                showNotification('Great job! Moving to next task', 'success');
+            }, 2000);
+        }
+
+        function handleMenuClick(menuItem) {
+            const menuText = menuItem.querySelector('.menu-text').textContent;
+            
+            switch(menuText) {
+                case 'Settings':
+                    showNotification('Opening settings...', 'info');
+                    break;
+                case 'Notifications':
+                    showNotification('Opening notifications...', 'info');
+                    break;
+                case 'Support':
+                    showNotification('Contacting support...', 'info');
+                    break;
+                case 'Performance':
+                    showNotification('Loading performance data...', 'info');
+                    break;
+                case 'Sign Out':
+                    if (confirm('Are you sure you want to sign out?')) {
+                        showNotification('Signing out...', 'info');
+                    }
+                    break;
+            }
+            
+            vibrate(50);
+        }
+
+        function showEmergencyAlert() {
+            const confirmed = confirm('🚨 Emergency Alert\n\nThis will notify your supervisor and safety team immediately. Continue?');
+            
+            if (confirmed) {
+                showNotification('Emergency alert sent!', 'error');
+                vibrate([200, 100, 200]);
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            document.querySelectorAll('.notification').forEach(notif => {
+                notif.remove();
+            });
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Show notification
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            // Hide notification
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function vibrate(duration = 100) {
+            if (navigator.vibrate) {
+                navigator.vibrate(duration);
+            }
+        }
+
+        // Simulate real-time updates
+        function simulateUpdates() {
+            setInterval(() => {
+                // Random notification simulation
+                if (Math.random() > 0.998) {
+                    const messages = [
+                        'New task assigned',
+                        'Update from supervisor',
+                        'Weather alert for your area',
+                        'Task reminder'
+                    ];
+                    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                    showNotification(randomMessage, 'info');
+                }
+            }, 1000);
+        }
+
+        // Start simulations
+        simulateUpdates();
+
+        // Touch event handling for better mobile experience
+        document.addEventListener('touchstart', function() {
+            // Add touch class for styling
+        });
+
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Console log for debugging
+        console.log('FSM Technician App - All systems ready!');
+        console.log('Current screen:', currentScreen);
+    </script>
+</body>
+</html>
